@@ -1,0 +1,28 @@
+ifneq ($(KERNELRELEASE),)
+# kbuild part of makefile
+obj-m := \
+	cef168.o \
+	sensor.dtbo
+
+else
+# normal makefile
+KERNEL_SRC ?= /lib/modules/`uname -r`/build
+HEADER_DIR ?= /usr/src/linux-headers-`uname -r | sed 's/rpt-.*/rpt-common-rpi/'`/include
+MODULE_DIR ?= kernel/drivers/media/i2c
+
+export DTC ?= /usr/bin/dtc
+
+default:
+	$(MAKE) -C "$(KERNEL_SRC)" M="$(CURDIR)" DTC_INCLUDE="$(HEADER_DIR)"
+	$(CXX) -Wall -Wextra -o calibrate calibrate.cpp
+
+install:
+	$(MAKE) -C "$(KERNEL_SRC)" M="$(CURDIR)" INSTALL_MOD_DIR="$(MODULE_DIR)" modules_install
+	@depmod -A
+	@cp sensor.dtbo "/boot/firmware/overlays" --update --backup=numbered --verbose
+
+clean:
+	$(MAKE) -C "$(KERNEL_SRC)" M="$(CURDIR)" clean
+	rm -f calibrate
+
+endif

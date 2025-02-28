@@ -1,0 +1,6 @@
+vcm_node: cef168@d {
+	compatible = "pinefeat,cef168";
+	reg = <0x0d>;
+	status = "disabled";
+	vcc-supply = <&vdd_3v3_reg>;
+};
