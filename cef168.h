@@ -6,7 +6,7 @@
 #define CEF168_V4L2_CID_CUSTOM(ctrl) \
 	((V4L2_CID_USER_BASE | 168) + custom_##ctrl)
 
-enum { custom_data, custom_focus_range, custom_calibrate };
+enum { custom_lens_id, custom_data, custom_focus_range, custom_calibrate };
 
 /**
  * cef168 data structure

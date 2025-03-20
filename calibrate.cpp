@@ -334,6 +334,10 @@ int main(int argc, char *argv[])
 			throw std::runtime_error("No PWL points for output");
 		}
 
+		int stepFrames = data.moving_time < 300 ? 4 :
+				 data.moving_time < 350 ? 5 :
+							  6 ;
+
 		auto it = points.begin();
 		auto last = --points.end();
 
@@ -353,6 +357,9 @@ int main(int argc, char *argv[])
 		std::cout << "\t\"max\": " << (*last).distance << ","
 			  << std::endl;
 		std::cout << "\t\"default\": " << (*last).distance << ","
+			  << std::endl;
+		std::cout << "Speed:" << std::endl;
+		std::cout << "\t\"step_frames\": " << stepFrames << ","
 			  << std::endl;
 		std::cout << "PWL function:" << std::endl;
 		std::cout << "\t\"map\": [ ";

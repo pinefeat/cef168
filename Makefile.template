@@ -1,8 +1,7 @@
 ifneq ($(KERNELRELEASE),)
 # kbuild part of makefile
 obj-m := \
-	cef168.o \
-	sensor.dtbo
+	cef168.o
 
 else
 # normal makefile
@@ -19,7 +18,7 @@ default:
 install:
 	$(MAKE) -C "$(KERNEL_SRC)" M="$(CURDIR)" INSTALL_MOD_DIR="$(MODULE_DIR)" modules_install
 	@depmod -A
-	@cp sensor.dtbo "/boot/firmware/overlays" --update --backup=numbered --verbose
+	@cp *.dtbo "/boot/firmware/overlays" --update --backup=numbered --verbose
 
 clean:
 	$(MAKE) -C "$(KERNEL_SRC)" M="$(CURDIR)" clean

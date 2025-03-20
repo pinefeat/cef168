@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # New vcm_node to replace the existing one
-new_vcm_node=$(cat cef168.dtsi)
+new_vcm_node=$(cat "cef168.dtsi")
 
 # Device tree fragment to set lens-focus property of the camera node
 lens_focus_fragment=$(cat <<EOF
@@ -135,11 +135,32 @@ add_new_vcm_node() {
         return 2
     fi
 
+    # Determine the camera node name to use in the fragment
     local dts_file="$1"
+    cam_node_pattern="(cam(_node)?|$sensor):$device_pattern"
+    cam_node_name=$(cat "$dts_file" | awk -v pattern="$cam_node_pattern" '
+    {
+        if (match(tolower($0), pattern)) {
+            match($0, /^[ \t]*/)                        # Capture leading spaces
+            indent = substr($0, RSTART, RLENGTH)        # Extract leading spaces
+            str = substr($0, length(indent) + 1)
+            match(str, /[^ :]+/)                        # Capture node name
+            name = substr(str, RSTART, RLENGTH)         # Extract node name
+            print name
+        }
+    }')
+
+    # Do not add if the file contains vcm node already
+    local first_line
+    first_line=$(head -n1 <<< "$new_vcm_node")
+
+    if grep -Pq "^\s*$first_line\s*$" "$dts_file"; then
+        return 0
+    fi
+
     temp_file=$(mktemp)
 
     # Use awk to add the block
-    cam_node_pattern="(cam(_node)?|$sensor):$device_pattern"
     awk -v pattern="$cam_node_pattern" -v new_block="$new_vcm_node" '
     BEGIN {IGNORECASE=1;flag=0;bracket=0}
     {
@@ -167,18 +188,6 @@ add_new_vcm_node() {
 
     # Check if the replacement took place by comparing the files
     if ! cmp -s "$dts_file" "$temp_file"; then
-        cam_node_name=$(cat "$temp_file" | awk -v pattern="$cam_node_pattern" '
-        {
-            if (match(tolower($0), pattern)) {
-                match($0, /^[ \t]*/)                        # Capture leading spaces
-                indent = substr($0, RSTART, RLENGTH)        # Extract leading spaces
-                str = substr($0, length(indent) + 1)
-                match(str, /[^ :]+/)                        # Capture node name
-                name = substr(str, RSTART, RLENGTH)         # Extract node name
-                print name
-            }
-        }')
-
         mv "$temp_file" "$dts_file" --update --backup=numbered --verbose
         return 0
     else
@@ -194,6 +203,15 @@ add_vcm_node_fragment() {
     fi
 
     local dts_file="$1"
+
+    # Do not add if fragment is already in the file
+    local fourth_line
+    fourth_line=$(sed -n '4p' <<< "$lens_focus_fragment")
+
+    if grep -Pq "^\s*$fourth_line\s*$" "$dts_file"; then
+        return 0
+    fi
+
     temp_file=$(mktemp)
 
     # Use awk to add the block
@@ -276,4 +294,33 @@ add_vcm_node_fragment() {
         rm -f "$temp_file"
         return 1
     fi
+}
+
+add_sensor_to_makefile() {
+    # Check if the required argument is provided
+    if [ "$#" -ne 2 ]; then
+        return 2
+    fi
+
+    local make_file="$1"
+    temp_file=$(mktemp)
+
+    awk -v sensor="$2" '
+    BEGIN {flag=0}
+    {
+        if (flag == 0 && tolower($0) ~ /cef168.o$/) {
+            flag = 1;
+            print $0 " \\";
+            print "\t" sensor ".dtbo";
+        } else if (flag == 0 && tolower($0) ~ /cef168.o \\$/) {
+            print $0;
+            print "\t" sensor ".dtbo \\";
+        } else {
+            print $0
+        }
+    }' "$make_file" > "$temp_file"
+
+
+    mv "$temp_file" "$make_file"
+    return 0
 }

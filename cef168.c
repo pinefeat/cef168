@@ -116,7 +116,8 @@ static int cef168_get_ctrl(struct v4l2_ctrl *ctrl)
 
 	if (ctrl->id != V4L2_CID_FOCUS_ABSOLUTE &&
 	    ctrl->id != CEF168_V4L2_CID_CUSTOM(data) &&
-	    ctrl->id != CEF168_V4L2_CID_CUSTOM(focus_range))
+	    ctrl->id != CEF168_V4L2_CID_CUSTOM(focus_range) &&
+	    ctrl->id != CEF168_V4L2_CID_CUSTOM(lens_id))
 		return -EINVAL;
 
 	struct cef168_data data;
@@ -133,6 +134,9 @@ static int cef168_get_ctrl(struct v4l2_ctrl *ctrl)
 			(u32)le32_to_cpu(((u32)data.focus_position_min << 16) |
 					 data.focus_position_max);
 		return 0;
+	case CEF168_V4L2_CID_CUSTOM(lens_id):
+		ctrl->p_new.p_u8[0] = data.lens_id;
+		return 0;
 	case CEF168_V4L2_CID_CUSTOM(data):
 		memcpy(ctrl->p_new.p_u8, &data, sizeof(data));
 		return 0;
@@ -144,6 +148,18 @@ static int cef168_get_ctrl(struct v4l2_ctrl *ctrl)
 static const struct v4l2_ctrl_ops cef168_ctrl_ops = {
 	.g_volatile_ctrl = cef168_get_ctrl,
 	.s_ctrl = cef168_set_ctrl,
+};
+
+static const struct v4l2_ctrl_config cef168_lens_id_ctrl = {
+	.ops = &cef168_ctrl_ops,
+	.id = CEF168_V4L2_CID_CUSTOM(lens_id),
+	.type = V4L2_CTRL_TYPE_U8,
+	.name = "Lens ID",
+	.min = 0,
+	.max = U8_MAX,
+	.step = 1,
+	.def = 0,
+	.flags = V4L2_CTRL_FLAG_VOLATILE | V4L2_CTRL_FLAG_READ_ONLY,
 };
 
 static const struct v4l2_ctrl_config cef168_focus_range_ctrl = {
@@ -218,7 +234,7 @@ static int cef168_init_controls(struct cef168_device *dev)
 	struct v4l2_ctrl_handler *hdl = &dev->ctrls;
 	const struct v4l2_ctrl_ops *ops = &cef168_ctrl_ops;
 
-	v4l2_ctrl_handler_init(hdl, 7);
+	v4l2_ctrl_handler_init(hdl, 8);
 
 	ctrl = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE, 0, S16_MAX,
 				 1, 0);
@@ -237,6 +253,7 @@ static int cef168_init_controls(struct cef168_device *dev)
 	v4l2_ctrl_new_custom(hdl, &cef168_calibrate_ctrl, NULL);
 	v4l2_ctrl_new_custom(hdl, &cef168_focus_range_ctrl, NULL);
 	v4l2_ctrl_new_custom(hdl, &cef168_data_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &cef168_lens_id_ctrl, NULL);
 
 	if (hdl->error)
 		dev_err(dev->sd.dev, "%s fail error: 0x%x\n", __func__,
