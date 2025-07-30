@@ -37,13 +37,47 @@ A valid, calibrated lens will return a positive value (e.g., 1203). If the resul
 
 Calibrate the lens as described [here](../readme.md#calibration). You only need to do this once per lens. After calibration, run the focus range check again to confirm proper setup.
 
-## 5. The Search Overshoots the Focus
+## 5. No PWL points for output
+
+If calibration utility returns _No PWL points for output_, first check whether the lens moves at all. If the lens doesn't move, it may indicate incompatibility with the adapter.
+
+If it does move, add the `-v` option when running calibration to get verbose output. Pay attention to the reported distance values — they should vary as the focus position traverses from minimum to infinity. If you see a constant value on every line such as `0.00 - 496.64 m`, it indicates that the lens does not have a distance encoder. That’s okay; some lenses simply lack this feature. 
+
+Since the Raspberry Pi autofocus algorithm operates in diopters, the calibration process converts distance in meters to diopters, which is simply the inverse of the distance. Without a distance encoder, it is not possible to generate PWL data, hence _No PWL points for output_.
+
+As a workaround, you can prepare the mapping table manually.
+
+Check the verbose output again and determine the focus position range. Let's say it goes from 0 to approximately 650. Reduce the maximum focus position to 630 to avoid the very end of the range near infinity.
+
+Check the minimum focus distance printed on the lens body. Let's say it is 0.45 m.
+
+Assuming the focusing distance ranges from 0.45 m to infinity, the maximum diopter value will be 1 / 0.45 = 2.22 and the minimum diopter value is always 0 (infinity). Based on this, the simplest mapping table and autofocus settings would look like this:
+
+```text
+------------------------------------------------------------
+Parameters for "rpi.af" section of camera tuning JSON file
+------------------------------------------------------------
+Inverse of focus distance, m⁻¹:
+    "min": 0.0,
+    "max": 2.22,
+    "default": 2.2,
+Speed:
+    step_frames: 4
+PWL function:
+    "map": [ 0.0, 630, 2.22, 0 ]
+```
+
+From the verbose output, determine the maximum time reported during calibration. If it exceeds 350 ms, bump `step_frames` parameter up to allow the lens more time to settle between focusing steps.
+
+You can use the above to prepare the camera tuning file.
+
+## 6. The Search Overshoots the Focus
 
 If the coarse search frequently overshoots the focus, regardless of the settings, it may be due to the lag of the lens motor.
 
 For lenses with a DC (direct current) motor, increase the `step_frames=6` parameter in the camera tuning file to allow the lens more time to settle between focusing steps.
 
-## 6. Autofocus Not Working After Raspberry Pi Full Upgrade
+## 7. Autofocus Not Working After Raspberry Pi Full Upgrade
 
 When the Raspberry Pi is updated, the firmware, Linux kernel, and all installed packages — including device overlay files — are upgraded to their latest versions. These overlay files define which lens driver should be loaded.
 

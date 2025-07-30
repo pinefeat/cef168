@@ -1,5 +1,6 @@
 imx219
 #imx258
+#imx283
 #imx290
 imx296
 #imx327
