@@ -30,10 +30,10 @@ If the lens does not focus and the image remains static when running `rpicam-hel
 Check the range with the following command:
 
 ```shell
-v4l2-ctl -d $DEV_LENS -C focus_range
+v4l2-ctl -d $DEV_LENS --all | awk '/focus_absolute/ {print $6;}'
 ```
 
-A valid, calibrated lens will return a positive value (e.g., 1203). If the result is 0 or greater than 32768, the lens has not been calibrated.
+A valid, calibrated lens will return a positive value (e.g., `max=1203`). If the result is 0 or 32767, the lens has not been calibrated.
 
 Calibrate the lens as described [here](../readme.md#calibration). You only need to do this once per lens. After calibration, run the focus range check again to confirm proper setup.
 

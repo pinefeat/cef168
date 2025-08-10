@@ -5,20 +5,50 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/pm_runtime.h>
-#include <linux/regulator/consumer.h>
+#include <linux/v4l2-controls.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include "cef168.h"
 
-/*
- * cef168 device structure
- */
+#define CEF168_NAME "cef168"
+
+#ifndef V4L2_CID_USER_CEF168_BASE
+#define V4L2_CID_USER_CEF168_BASE	(V4L2_CID_USER_BASE | 168)
+#endif
+
+#define CEF168_V4L2_CID_CUSTOM(ctrl) \
+	(V4L2_CID_USER_CEF168_BASE + custom_##ctrl)
+
+enum { custom_lens_id, custom_data, custom_calibrate };
+
+#define INP_CALIBRATE 0x22
+#define INP_SET_FOCUS 0x80
+#define INP_SET_FOCUS_P 0x81
+#define INP_SET_FOCUS_N 0x82
+#define INP_SET_APERTURE 0x7A
+#define INP_SET_APERTURE_P 0x7B
+#define INP_SET_APERTURE_N 0x7C
+
+#define CEF_CRC8_POLYNOMIAL 168
+
+DECLARE_CRC8_TABLE(cef168_crc8_table);
+
+struct cef168_data {
+	__u8 lens_id;
+	__u8 moving : 1;
+	__u8 calibrating : 2;
+	__u16 moving_time;
+	__u16 focus_position_min;
+	__u16 focus_position_max;
+	__u16 focus_position_cur;
+	__u16 focus_distance_min;
+	__u16 focus_distance_max;
+	__u8 crc8;
+} __packed;
+
 struct cef168_device {
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_subdev sd;
-	struct regulator *vcc;
 };
 
 static inline struct cef168_device *to_cef168(struct v4l2_ctrl *ctrl)
@@ -36,17 +66,17 @@ static int cef168_i2c_write(struct cef168_device *cef168_dev, u8 cmd, u16 val)
 	struct i2c_client *client = v4l2_get_subdevdata(&cef168_dev->sd);
 	int retry, ret;
 
-	val = cpu_to_le16(val);
-	char tx_data[4] = { cmd, (val & 0xff), (val >> 8) };
+	__le16 le_data = cpu_to_le16(val);
+	char tx_data[4] = { cmd, ((u8 *)&le_data)[0], ((u8 *)&le_data)[1] };
+
 	tx_data[3] = crc8(cef168_crc8_table, tx_data, 3, CRC8_INIT_VALUE);
 
 	for (retry = 0; retry < 3; retry++) {
 		ret = i2c_master_send(client, tx_data, sizeof(tx_data));
-		if (ret == sizeof(tx_data)) {
+		if (ret == sizeof(tx_data))
 			return 0;
-		} else if (ret != -EIO && ret != -EREMOTEIO) {
+		else if (ret != -EIO && ret != -EREMOTEIO)
 			break;
-		}
 	}
 
 	dev_err(&client->dev, "I2C write fail after %d retries, ret=%d\n",
@@ -75,12 +105,12 @@ static int cef168_i2c_read(struct cef168_device *cef168_dev,
 		return -EIO;
 	}
 
-	rx_data->moving_time = le16_to_cpu(rx_data->moving_time);
-	rx_data->focus_position_min = le16_to_cpu(rx_data->focus_position_min);
-	rx_data->focus_position_max = le16_to_cpu(rx_data->focus_position_max);
-	rx_data->focus_position_cur = le16_to_cpu(rx_data->focus_position_cur);
-	rx_data->focus_distance_min = le16_to_cpu(rx_data->focus_distance_min);
-	rx_data->focus_distance_max = le16_to_cpu(rx_data->focus_distance_max);
+	rx_data->moving_time = le16_to_cpup((__le16 *)&rx_data->moving_time);
+	rx_data->focus_position_min = le16_to_cpup((__le16 *)&rx_data->focus_position_min);
+	rx_data->focus_position_max = le16_to_cpup((__le16 *)&rx_data->focus_position_max);
+	rx_data->focus_position_cur = le16_to_cpup((__le16 *)&rx_data->focus_position_cur);
+	rx_data->focus_distance_min = le16_to_cpup((__le16 *)&rx_data->focus_distance_min);
+	rx_data->focus_distance_max = le16_to_cpup((__le16 *)&rx_data->focus_distance_max);
 
 	return 0;
 }
@@ -103,7 +133,6 @@ static int cef168_set_ctrl(struct v4l2_ctrl *ctrl)
 		return cef168_i2c_write(dev, cmd, abs(ctrl->val));
 	case CEF168_V4L2_CID_CUSTOM(calibrate):
 		return cef168_i2c_write(dev, INP_CALIBRATE, 0);
-		return 0;
 	}
 
 	return -EINVAL;
@@ -111,28 +140,20 @@ static int cef168_set_ctrl(struct v4l2_ctrl *ctrl)
 
 static int cef168_get_ctrl(struct v4l2_ctrl *ctrl)
 {
+	struct cef168_data data;
 	struct cef168_device *dev = to_cef168(ctrl);
 	int rval;
 
-	if (ctrl->id != V4L2_CID_FOCUS_ABSOLUTE &&
-	    ctrl->id != CEF168_V4L2_CID_CUSTOM(data) &&
-	    ctrl->id != CEF168_V4L2_CID_CUSTOM(focus_range) &&
-	    ctrl->id != CEF168_V4L2_CID_CUSTOM(lens_id))
-		return -EINVAL;
-
-	struct cef168_data data;
 	rval = cef168_i2c_read(dev, &data);
 	if (rval < 0)
 		return rval;
 
 	switch (ctrl->id) {
 	case V4L2_CID_FOCUS_ABSOLUTE:
+		__v4l2_ctrl_modify_range(ctrl,
+					 data.focus_position_min,
+					 data.focus_position_max, 1, 0);
 		ctrl->val = data.focus_position_cur;
-		return 0;
-	case CEF168_V4L2_CID_CUSTOM(focus_range):
-		ctrl->p_new.p_u32[0] =
-			(u32)le32_to_cpu(((u32)data.focus_position_min << 16) |
-					 data.focus_position_max);
 		return 0;
 	case CEF168_V4L2_CID_CUSTOM(lens_id):
 		ctrl->p_new.p_u8[0] = data.lens_id;
@@ -162,18 +183,6 @@ static const struct v4l2_ctrl_config cef168_lens_id_ctrl = {
 	.flags = V4L2_CTRL_FLAG_VOLATILE | V4L2_CTRL_FLAG_READ_ONLY,
 };
 
-static const struct v4l2_ctrl_config cef168_focus_range_ctrl = {
-	.ops = &cef168_ctrl_ops,
-	.id = CEF168_V4L2_CID_CUSTOM(focus_range),
-	.type = V4L2_CTRL_TYPE_U32,
-	.name = "Focus Range",
-	.min = 0,
-	.max = U32_MAX,
-	.step = 1,
-	.def = 0,
-	.flags = V4L2_CTRL_FLAG_VOLATILE | V4L2_CTRL_FLAG_READ_ONLY,
-};
-
 static const struct v4l2_ctrl_config cef168_data_ctrl = {
 	.ops = &cef168_ctrl_ops,
 	.id = CEF168_V4L2_CID_CUSTOM(data),
@@ -195,22 +204,6 @@ static const struct v4l2_ctrl_config cef168_calibrate_ctrl = {
 	.name = "Calibrate",
 };
 
-static int cef168_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
-{
-	return pm_runtime_resume_and_get(sd->dev);
-}
-
-static int cef168_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
-{
-	pm_runtime_put(sd->dev);
-	return 0;
-}
-
-static const struct v4l2_subdev_internal_ops cef168_int_ops = {
-	.open = cef168_open,
-	.close = cef168_close,
-};
-
 static const struct v4l2_subdev_core_ops cef168_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
@@ -221,20 +214,13 @@ static const struct v4l2_subdev_ops cef168_ops = {
 	.core = &cef168_core_ops,
 };
 
-static void cef168_subdev_cleanup(struct cef168_device *cef168_dev)
-{
-	v4l2_async_unregister_subdev(&cef168_dev->sd);
-	v4l2_ctrl_handler_free(&cef168_dev->ctrls);
-	media_entity_cleanup(&cef168_dev->sd.entity);
-}
-
 static int cef168_init_controls(struct cef168_device *dev)
 {
 	struct v4l2_ctrl *ctrl;
 	struct v4l2_ctrl_handler *hdl = &dev->ctrls;
 	const struct v4l2_ctrl_ops *ops = &cef168_ctrl_ops;
 
-	v4l2_ctrl_handler_init(hdl, 8);
+	v4l2_ctrl_handler_init(hdl, 7);
 
 	ctrl = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE, 0, S16_MAX,
 				 1, 0);
@@ -250,8 +236,10 @@ static int cef168_init_controls(struct cef168_device *dev)
 			       V4L2_CTRL_FLAG_EXECUTE_ON_WRITE;
 	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_IRIS_RELATIVE, S16_MIN, S16_MAX, 1,
 			  0);
-	v4l2_ctrl_new_custom(hdl, &cef168_calibrate_ctrl, NULL);
-	v4l2_ctrl_new_custom(hdl, &cef168_focus_range_ctrl, NULL);
+	ctrl = v4l2_ctrl_new_custom(hdl, &cef168_calibrate_ctrl, NULL);
+	if (ctrl)
+		ctrl->flags |= V4L2_CTRL_FLAG_WRITE_ONLY |
+			       V4L2_CTRL_FLAG_EXECUTE_ON_WRITE;
 	v4l2_ctrl_new_custom(hdl, &cef168_data_ctrl, NULL);
 	v4l2_ctrl_new_custom(hdl, &cef168_lens_id_ctrl, NULL);
 
@@ -267,25 +255,14 @@ static int cef168_probe(struct i2c_client *client)
 	struct cef168_device *cef168_dev;
 	int rval;
 
-	cef168_dev =
-		devm_kzalloc(&client->dev, sizeof(*cef168_dev), GFP_KERNEL);
-	if (cef168_dev == NULL)
+	cef168_dev = devm_kzalloc(&client->dev, sizeof(*cef168_dev),
+				  GFP_KERNEL);
+	if (!cef168_dev)
 		return -ENOMEM;
-
-	cef168_dev->vcc = devm_regulator_get(&client->dev, "vcc");
-	if (IS_ERR(cef168_dev->vcc))
-		return PTR_ERR(cef168_dev->vcc);
-
-	rval = regulator_enable(cef168_dev->vcc);
-	if (rval < 0) {
-		dev_err(&client->dev, "failed to enable vcc: %d\n", rval);
-		return rval;
-	}
 
 	v4l2_i2c_subdev_init(&cef168_dev->sd, client, &cef168_ops);
 	cef168_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 				V4L2_SUBDEV_FL_HAS_EVENTS;
-	cef168_dev->sd.internal_ops = &cef168_int_ops;
 
 	rval = cef168_init_controls(cef168_dev);
 	if (rval)
@@ -303,14 +280,9 @@ static int cef168_probe(struct i2c_client *client)
 
 	crc8_populate_msb(cef168_crc8_table, CEF_CRC8_POLYNOMIAL);
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
-
 	return 0;
 
 err_cleanup:
-	regulator_disable(cef168_dev->vcc);
 	v4l2_ctrl_handler_free(&cef168_dev->ctrls);
 	media_entity_cleanup(&cef168_dev->sd.entity);
 
@@ -321,80 +293,29 @@ static void cef168_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct cef168_device *cef168_dev = sd_to_cef168(sd);
-	int ret;
 
-	pm_runtime_disable(&client->dev);
-	if (!pm_runtime_status_suspended(&client->dev)) {
-		ret = regulator_disable(cef168_dev->vcc);
-		if (ret) {
-			dev_err(&client->dev, "Failed to disable vcc: %d\n",
-				ret);
-		}
-	}
-	pm_runtime_set_suspended(&client->dev);
-	cef168_subdev_cleanup(cef168_dev);
+	v4l2_async_unregister_subdev(&cef168_dev->sd);
+	v4l2_ctrl_handler_free(&cef168_dev->ctrls);
+	media_entity_cleanup(&cef168_dev->sd.entity);
 }
-
-static int __maybe_unused cef168_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct cef168_device *cef168_dev = sd_to_cef168(sd);
-
-	if (pm_runtime_suspended(&client->dev))
-		return 0;
-
-	int ret = regulator_disable(cef168_dev->vcc);
-	if (ret)
-		dev_err(dev, "Failed to disable vcc: %d\n", ret);
-
-	return ret;
-}
-
-static int __maybe_unused cef168_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct cef168_device *cef168_dev = sd_to_cef168(sd);
-
-	if (pm_runtime_suspended(&client->dev))
-		return 0;
-
-	int ret = regulator_enable(cef168_dev->vcc);
-	if (ret)
-		dev_err(dev, "Failed to enable vcc: %d\n", ret);
-
-	return ret;
-}
-
-static const struct i2c_device_id cef168_id_table[] = { { CEF168_NAME, 0 },
-							{ { 0 } } };
-MODULE_DEVICE_TABLE(i2c, cef168_id_table);
 
 static const struct of_device_id cef168_of_table[] = {
 	{ .compatible = "pinefeat,cef168" },
-	{ { 0 } }
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, cef168_of_table);
 
-static const struct dev_pm_ops cef168_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cef168_suspend, cef168_resume)
-		SET_RUNTIME_PM_OPS(cef168_suspend, cef168_resume, NULL)
-};
-
 static struct i2c_driver cef168_i2c_driver = {
-		.driver = {
-				.name = CEF168_NAME,
-				.pm = &cef168_pm_ops,
-				.of_match_table = cef168_of_table,
-		},
-		.probe = cef168_probe,
-		.remove = cef168_remove,
-		.id_table = cef168_id_table,
+	.driver = {
+		.name = CEF168_NAME,
+		.of_match_table = cef168_of_table,
+	},
+	.probe = cef168_probe,
+	.remove = cef168_remove,
 };
 
 module_i2c_driver(cef168_i2c_driver);
 
 MODULE_AUTHOR("support@pinefeat.co.uk>");
-MODULE_DESCRIPTION("CEF168 VCM driver");
-MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("CEF168 lens driver");
+MODULE_LICENSE("GPL");
