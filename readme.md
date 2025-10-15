@@ -253,7 +253,10 @@ In zoom lenses, the aperture range varies as the focal length changes. The contr
 
 ## Serial Interface
 
-A serial interface is not required for autofocus to function. However, it can be used for third-party software integrations. The control board serial protocol is described [here](doc/serial.md).
+A serial interface is not required for autofocus to operate. However, it can be used to enable third-party software integrations, such as with astronomical imaging platforms like INDI. In this setup, the INDI [driver](https://github.com/indilib/indi/blob/master/drivers/focuser/doc/pinefeat_cef/index.md)
+communicates with the lens via the serial connection, which requires the board to be connected through a serial cable. Please note that in this configuration, installing the kernel driver described above is not necessary, since the board is controlled through the serial interface rather than I2C.
+
+The control board serial protocol is described [here](doc/serial.md).
 
 ## Helpful Hints
 
