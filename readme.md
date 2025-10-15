@@ -45,6 +45,8 @@ For tested and **ready-to-use** assemblies, refer to the PDF guides below. These
 
 ![Assembly of Pinefeat Lens Controller and Arducam IMX708 Camera Module](https://docs.pinefeat.co.uk/cef168-assembly-arducam-imx708.jpg)
 
+To assemble the setup, 3D-print the [following mount](https://www.printables.com/model/1371439-lens-mount-for-raspberry-pi-camera-with-pinefeat-l) to hold all components together.
+
 Ensure you follow the assembly guide carefully before proceeding with the setup and usage instructions in this manual.
 
 ## Quick test
