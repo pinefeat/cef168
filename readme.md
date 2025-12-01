@@ -197,6 +197,8 @@ For High Quality Camera (`imx477.json`) the `rpi.af` section is absent in the fi
                 "step_coarse": 0.2,
                 "step_fine": 0.05,
                 "contrast_ratio": 0.75,
+                "retrigger_ratio": 0.8,
+                "retrigger_delay": 10,
                 "pdaf_gain": 0.0,
                 "pdaf_squelch": 0.0,
                 "max_slew": 2.0,
@@ -209,6 +211,7 @@ For High Quality Camera (`imx477.json`) the `rpi.af` section is absent in the fi
         "conf_thresh": 0,
         "conf_clip": 0,
         "skip_frames": 5,
+        "check_for_ir": false,
         "map": [ 0.00153, 358, 0.108, 347, 0.383, 333, 1.35, 319, 1.54, 296, 2.08, 266, 2.78, 235, 3.03, 224, 3.45, 192, 3.7, 171, 4, 141, 4.35, 128, 4.55, 7 ]
     }
 },
