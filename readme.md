@@ -42,6 +42,7 @@ For tested and **ready-to-use** assemblies, refer to the PDF guides below. These
 
  - [Raspberry Pi High Quality Camera (CS Mount variant)](https://docs.pinefeat.co.uk/cef168-assembly-rpi-hq-camera.pdf)
  - [Arducam IMX708 Camera Module (M12 Mount variant)](https://docs.pinefeat.co.uk/cef168-assembly-arducam-imx708.pdf)
+ - [OneInchEye Camera Board](https://docs.pinefeat.co.uk/cef168-assembly-oneincheye-camera.pdf)
 
 ![Assembly of Pinefeat Lens Controller and Arducam IMX708 Camera Module](https://docs.pinefeat.co.uk/cef168-assembly-arducam-imx708.jpg)
 
@@ -105,6 +106,7 @@ You will need to repeat this operation if you upgrade your Raspberry Pi firmware
 | Camera sensor | Line in `/boot/firmware/config.txt` |
 |---------------|-------------------------------------|
 | imx219        | `dtoverlay=imx219,vcm`              |
+| imx283        | `dtoverlay=imx283`                  |
 | imx296        | `dtoverlay=imx296`                  |
 | imx477        | `dtoverlay=imx477`                  |
 | imx519        | `dtoverlay=imx519`                  |
