@@ -5,7 +5,7 @@ A list of common problems and their solutions.
 * [Unusual LED Activity on First Boot](#1-unusual-led-activity-on-first-boot)
 * [Camera Is Not Detected After Assembly](#2-camera-is-not-detected-after-assembly)
 * [Camera Is Detected, but Not Lens Media Device](#3-camera-is-detected-but-not-lens-media-device)
-* [Downloading Device Tree Overlay: 404 Not Found](#4-downloading-device-tree-overlay-files-error-404-not-found)
+* [Downloading Device Tree Overlay: 404 Not Found](#4-downloading-device-tree-overlay-404-not-found)
 * [Lens Does Not Focus at All](#5-lens-does-not-focus-at-all)
 * [No PWL points for output](#6-no-pwl-points-for-output)
 * [The Search Overshoots the Focus](#7-the-search-overshoots-the-focus)
