@@ -2,6 +2,15 @@
 
 A list of common problems and their solutions.
 
+* [Unusual LED Activity on First Boot](#1-unusual-led-activity-on-first-boot)
+* [Camera Is Not Detected After Assembly](#2-camera-is-not-detected-after-assembly)
+* [Camera Is Detected, but Not Lens Media Device](#3-camera-is-detected-but-not-lens-media-device)
+* [Downloading Device Tree Overlay: 404 Not Found](#4-downloading-device-tree-overlay-files-error-404-not-found)
+* [Lens Does Not Focus at All](#5-lens-does-not-focus-at-all)
+* [No PWL points for output](#6-no-pwl-points-for-output)
+* [The Search Overshoots the Focus](#7-the-search-overshoots-the-focus)
+* [Autofocus Not Working After Raspberry Pi Full Upgrade](#8-autofocus-not-working-after-raspberry-pi-full-upgrade)
+
 ## 1: Unusual LED Activity on First Boot
 
 If, after the assembling of the unit, the Raspberry Pi LEDs show unusual activity (such as blinking or staying off completely), it likely indicates a **short circuit** caused by incorrect orientation of one of the flex cables. There are two cables to consider: one connects the controller to the camera module, and the other connects the camera module to the Raspberry Pi.
@@ -23,7 +32,41 @@ If the camera is detected but the lens media device is not discovered, there are
 1. **Multiple Cameras Connected**: If multiple cameras are connected, use `v4l2-ctl --list-devices` to check which camera is being used. Look for _unicam_ or _rp1-cfe_ in the driver name. Additionally, use `media-ctl -d <camera-device> -p` to view the device topology and check if the lens node `cef168` is listed. When found, feed the lens device name into the calibration tool.
 2. **Lens Node Present but Disabled**: If the lens node `cef168` appears in the device tree but is disabled, you are likely using a camera with the `imx219` or `ov5647` sensor. These sensors require the lens node (`vcm`) to be explicitly enabled in the overlay with `dtoverlay=imx219,vcm`.
 
-## 4. Lens Does Not Focus at All
+## 4. Downloading Device Tree Overlay: 404 Not Found
+
+For some newer sensors, the drivers or their overlay files are not yet included in the Linux source tree or the latest Raspberry Pi firmware. As a result, the configure script may fail because it cannot find the overlay. To work around this, run the script as follows:
+
+<details>
+<summary>OneInchEye</summary>
+
+```sh
+commit=$(wget -q -O - "https://raw.githubusercontent.com/raspberrypi/firmware/refs/heads/next/extra/git_hash") \
+./configure.sh imx283
+```
+
+</details>
+
+<details>
+<summary>StarlightEye</summary>
+
+```sh
+download_path="https://raw.githubusercontent.com/will127534/imx585-v4l2-driver/refs/heads/main/" \
+./configure.sh imx585
+```
+
+</details>
+
+<details>
+<summary>FourThirdsEye</summary>
+
+```sh
+download_path="https://raw.githubusercontent.com/will127534/imx294-v4l2-driver/refs/heads/main/" \
+./configure.sh imx294
+```
+
+</details>
+
+## 5. Lens Does Not Focus at All
 
 If the lens does not focus and the image remains static when running `rpicam-hello` with autofocus enabled, it is likely because the lens has not been calibrated and does not know its full focus range.
 
@@ -37,7 +80,7 @@ A valid, calibrated lens will return a positive value (e.g., `max=1203`). If the
 
 Calibrate the lens as described [here](../readme.md#calibration). You only need to do this once per lens. After calibration, run the focus range check again to confirm proper setup.
 
-## 5. No PWL points for output
+## 6. No PWL points for output
 
 If calibration utility returns _No PWL points for output_, first check whether the lens moves at all. If the lens doesn't move, it may indicate incompatibility with the adapter.
 
@@ -71,13 +114,13 @@ From the verbose output, determine the maximum time reported during calibration.
 
 You can use the above to prepare the camera tuning file.
 
-## 6. The Search Overshoots the Focus
+## 7. The Search Overshoots the Focus
 
 If the coarse search frequently overshoots the focus, regardless of the settings, it may be due to the lag of the lens motor.
 
 For lenses with a DC (direct current) motor, increase the `step_frames=6` parameter in the camera tuning file to allow the lens more time to settle between focusing steps.
 
-## 7. Autofocus Not Working After Raspberry Pi Full Upgrade
+## 8. Autofocus Not Working After Raspberry Pi Full Upgrade
 
 When the Raspberry Pi is updated, the firmware, Linux kernel, and all installed packages — including device overlay files — are upgraded to their latest versions. These overlay files define which lens driver should be loaded.
 
