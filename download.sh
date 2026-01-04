@@ -16,7 +16,7 @@ else
 fi
 
 # Determine Raspberry Pi Linux kernel Git hash
-commit=$(wget --quiet -O - "https://raw.githubusercontent.com/raspberrypi/firmware/refs/tags/$upstream_version/extra/git_hash")
+: "${commit:=$(wget --quiet -O - "https://raw.githubusercontent.com/raspberrypi/firmware/refs/tags/${upstream_version}/extra/git_hash")}"
 if [ -z "$commit" ]; then
     echo "Raspberry Pi Linux kernel Git hash is not determined" >&2
     exit 1
@@ -29,7 +29,7 @@ declare -A downloaded_files
 
 download() {
     local file="$1"
-    wget --no-verbose --backups=5 "https://raw.githubusercontent.com/raspberrypi/linux/$commit/arch/arm/boot/dts/overlays/$file"
+    wget --no-verbose --backups=5 "https://raw.githubusercontent.com/raspberrypi/linux/${commit}/arch/arm/boot/dts/overlays/${file}"
     return $?
 }
 
