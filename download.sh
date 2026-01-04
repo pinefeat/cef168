@@ -24,12 +24,14 @@ else
     echo "Raspberry Pi Linux kernel Git hash: $commit"
 fi
 
+: "${download_path:="https://raw.githubusercontent.com/raspberrypi/linux/${commit}/arch/arm/boot/dts/overlays/"}"
+
 # Download device tree overlay files
 declare -A downloaded_files
 
 download() {
     local file="$1"
-    wget --no-verbose --backups=5 "https://raw.githubusercontent.com/raspberrypi/linux/${commit}/arch/arm/boot/dts/overlays/${file}"
+    wget --no-verbose --backups=5 "${download_path}${file}"
     return $?
 }
 
