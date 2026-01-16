@@ -85,6 +85,8 @@ cd cef168
 ./configure.sh
 ```
 
+⚠️ For newer sensors whose drivers and overlay files are not yet included in the Linux source tree, refer to [this guide](/doc/troubleshooting.md#4-downloading-device-tree-overlay-404-not-found).
+
 The script will download the device tree overlay files for your camera from the Raspberry Pi Git repository, corresponding to your Raspberry Pi firmware version. It will then adjust the overlays to add the lens node. The lens is controlled via the I2C bus, and the kernel needs to load the lens driver. Make sure the script output confirms that the `All overlays files were updated successfully`.
 
 3\. Compile and install the kernel driver and the overlay:
