@@ -310,11 +310,11 @@ add_sensor_to_makefile() {
     {
         if (flag == 0 && tolower($0) ~ /cef168.o$/) {
             flag = 1;
-            print $0 " \\";
-            print "\t" sensor ".dtbo";
+            print $0;
+            print "dtb-y += " sensor ".dtbo";
         } else if (flag == 0 && tolower($0) ~ /cef168.o \\$/) {
             print $0;
-            print "\t" sensor ".dtbo \\";
+            print "dtb-y += " sensor ".dtbo \\";
         } else {
             print $0
         }
