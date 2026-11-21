@@ -43,6 +43,7 @@ For tested and **ready-to-use** assemblies, refer to the PDF guides below. These
  - [Raspberry Pi High Quality Camera (CS Mount variant)](https://docs.pinefeat.co.uk/cef168-assembly-rpi-hq-camera.pdf)
  - [Arducam IMX708 Camera Module (M12 Mount variant)](https://docs.pinefeat.co.uk/cef168-assembly-arducam-imx708.pdf)
  - [OneInchEye Camera Board](https://docs.pinefeat.co.uk/cef168-assembly-oneincheye-camera.pdf)
+ - [FourthirdsEye Camera Board](https://docs.pinefeat.co.uk/cef168-assembly-fourthirdseye-camera.pdf)
 
 ![Assembly of Pinefeat Lens Controller and Arducam IMX708 Camera Module](https://docs.pinefeat.co.uk/cef168-assembly-arducam-imx708.jpg)
 
